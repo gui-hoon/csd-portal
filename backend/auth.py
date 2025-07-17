@@ -98,7 +98,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
     if not db_user.is_active:
         raise HTTPException(status_code=403, detail="관리자 승인 후 로그인할 수 있습니다.")
     access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role.value})
-    return {"access_token": access_token, "token_type": "bearer", "user": {"id": db_user.id, "name": db_user.name, "email": db_user.email, "role": db_user.role.value}}
+    return {"access_token": access_token, "token_type": "bearer", "user": {"id": db_user.id, "name": db_user.name, "email": db_user.email, "role": db_user.role.value}} 
 
 @router.put("/me", response_model=UserRead)
 def update_me(update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

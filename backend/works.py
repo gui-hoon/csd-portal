@@ -46,4 +46,18 @@ def delete_work(work_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Work not found")
     db.delete(db_work)
     db.commit()
-    return {"ok": True} 
+    return {"ok": True}
+
+@router.get("/solution/{solution}", response_model=List[schemas.Work])
+def list_works_by_solution(
+    solution: str,
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    q = db.query(models.Work).filter(models.Work.solution == solution)
+    if start:
+        q = q.filter(models.Work.date >= start)
+    if end:
+        q = q.filter(models.Work.date <= end)
+    return q.order_by(models.Work.date.desc()).all() 

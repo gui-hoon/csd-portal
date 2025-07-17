@@ -460,8 +460,8 @@ export default function SolutionClientsPage() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <form onSubmit={handleAddSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300 pointer-events-auto">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto" onClick={() => setShowAddModal(false)}>
+          <form onClick={e => e.stopPropagation()} onSubmit={handleAddSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300">
             <h2 className="text-xl font-bold mb-4 text-black">고객사 추가</h2>
             <div className="flex flex-col gap-4">
               {/* 1행: 고객사명, 계약 종류, 라이선스 종류 */}
@@ -534,8 +534,8 @@ export default function SolutionClientsPage() {
       )}
 
       {showEditModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <form onSubmit={handleEditSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300 pointer-events-auto">
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto" onClick={() => setShowEditModal(false)}>
+          <form onClick={e => e.stopPropagation()} onSubmit={handleEditSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300">
             <h2 className="text-xl font-bold mb-4 text-black">고객사 수정</h2>
             <div className="flex flex-col gap-4">
               {/* 1행: 고객사명, 계약 종류, 라이선스 종류 */}

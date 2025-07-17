@@ -17,6 +17,8 @@ def list_issues(
     priority: Optional[IssuePriority] = Query(None),
     client: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
     skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db)
@@ -34,6 +36,10 @@ def list_issues(
             Issue.content.ilike(f"%{search}%") |
             Issue.assignee.ilike(f"%{search}%")
         )
+    if start:
+        q = q.filter(Issue.created_at >= start)
+    if end:
+        q = q.filter(Issue.created_at <= end)
     q = q.order_by(Issue.created_at.asc())
     return q.offset(skip).limit(limit).all()
 

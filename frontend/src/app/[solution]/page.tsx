@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Pie, Bar } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
@@ -14,12 +14,12 @@ function SummaryCard({ title, value }: { title: string, value: number|string }) 
   );
 }
 
-function ListCard({ title, items }: { title: string, items: string[] }) {
+function ListCard({ title, items, renderItem }: { title: string, items: string[], renderItem?: (item: string, i: number) => React.ReactNode }) {
   return (
     <div className="bg-white rounded shadow border border-gray-200 p-6">
       <div className="text-gray-600 text-sm mb-2 font-semibold">{title}</div>
       <ul className="text-black text-sm space-y-1">
-        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => <li key={i}>• {item}</li>)}
+        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => renderItem ? renderItem(item, i) : <li key={i} className="truncate max-w-full">• {item}</li>)}
       </ul>
     </div>
   );
@@ -45,6 +45,8 @@ function getWeekRange(weekStr: string) {
 
 export default function SolutionDashboard() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const solution = params?.solution as string | undefined;
   const solutionLabel = solution ? solution.charAt(0).toUpperCase() + solution.slice(1).toLowerCase() : '';
   const [clientCount, setClientCount] = useState(0);
@@ -54,16 +56,19 @@ export default function SolutionDashboard() {
   const [workByDayData, setWorkByDayData] = useState<{ labels: string[]; values: number[] }>({ labels: ['월', '화', '수', '목', '금', '토', '일'], values: [0,0,0,0,0,0,0] });
   const [issueStatusData, setIssueStatusData] = useState<{ labels: string[]; values: number[] }>({ labels: ['진행중', '대기', '해결'], values: [0,0,0] });
   const [newClients, setNewClients] = useState<string[]>([]);
-  const [mainWorks, setMainWorks] = useState<string[]>([]);
-  const [openIssues, setOpenIssues] = useState<string[]>([]);
+  const [mainWorks, setMainWorks] = useState<any[]>([]);
+  const [openIssues, setOpenIssues] = useState<any[]>([]);
+  const [openIssuePriorityCount, setOpenIssuePriorityCount] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
+  const [expiredClients, setExpiredClients] = useState<string[]>([]);
 
   // 오늘 날짜, 주차 계산 (간단 예시)
   const today = new Date().toLocaleDateString('ko-KR');
   // 주 단위 선택 상태
   const [selectedWeek, setSelectedWeek] = useState(() => {
-    // 기본값: 이번 주(YYYY-Www)
+    const urlWeek = searchParams?.get('week');
+    if (urlWeek) return urlWeek;
     const now = new Date();
     const year = now.getFullYear();
     const week = Math.ceil(((+now - +new Date(year, 0, 1)) / 86400000 + new Date(year, 0, 1).getDay() + 1) / 7);
@@ -96,10 +101,18 @@ export default function SolutionDashboard() {
     fetch(`/clients/solution/${solution}`)
       .then(res => res.json())
       .then(data => {
-        setClientCount(data.length);
-        // 계약 유형별 집계
+        // 선택한 주차(기간)에 등록되어 있는 고객사만 필터링
+        const filteredClients = data.filter((c: any) => {
+          if (!c.license_start || !c.license_end) return false;
+          const startD = new Date(c.license_start);
+          const endD = new Date(c.license_end);
+          // license_start <= end && license_end >= start
+          return startD <= end && endD >= start;
+        });
+        setClientCount(filteredClients.length);
+        // 계약 유형별 집계 (필터링된 고객사 기준)
         const typeMap: Record<string, number> = {};
-        data.forEach((c: any) => { typeMap[c.contract_type] = (typeMap[c.contract_type]||0)+1; });
+        filteredClients.forEach((c: any) => { typeMap[c.contract_type] = (typeMap[c.contract_type]||0)+1; });
         setClientTypeData({ labels: Object.keys(typeMap), values: Object.values(typeMap) });
         // 신규 고객사(최근 1주)
         const newList = data.filter((c: any) => {
@@ -108,10 +121,17 @@ export default function SolutionDashboard() {
           return d >= start && d <= end;
         }).map((c: any) => c.name);
         setNewClients(newList.slice(0,5));
+        // 라이선스 만료 고객사(만료일이 end 이하인 경우 모두 표시)
+        const expiredList = data.filter((c: any) => {
+          if (!c.license_end) return false;
+          const d = new Date(c.license_end);
+          return d <= end;
+        }).map((c: any) => c.name);
+        setExpiredClients(expiredList);
       })
       .catch(e => setError('고객사 데이터 오류'));
     // 2. 작업 fetch
-    fetch(`/works/solution/${solution}?start=${startDate}&end=${endDate}`)
+    fetch(`http://10.10.19.189:8000/works/solution/${solution}?start=${startDate}&end=${endDate}`)
       .then(res => res.json())
       .then(data => {
         setWorkCount(data.length);
@@ -122,8 +142,8 @@ export default function SolutionDashboard() {
           days[d.getDay()]++;
         });
         setWorkByDayData({ labels: ['일','월','화','수','목','금','토'], values: days });
-        // 주요 작업(최근순)
-        setMainWorks(data.slice(0,5).map((w: any) => `${w.client} ${w.content}`));
+        // 주요 작업(최근순, id 포함)
+        setMainWorks(data.slice(0,5).map((w: any) => ({ id: w.id, client: w.client, content: w.content, date: w.date })));
       })
       .catch(e => setError('작업 데이터 오류'));
     // 3. 이슈 fetch
@@ -139,8 +159,17 @@ export default function SolutionDashboard() {
           else if(i.status==='resolved') statusMap['해결']++;
         });
         setIssueStatusData({ labels: Object.keys(statusMap), values: Object.values(statusMap) });
-        // 미해결 이슈 Top 5
-        setOpenIssues(data.filter((i: any) => i.status!=='resolved').slice(0,5).map((i: any) => `${i.client} ${i.title}`));
+        // 미해결 이슈 Top 5 → 미해결 이슈 전체 객체 배열로 저장
+        const open = data.filter((i: any) => i.status !== 'resolved');
+        setOpenIssues(open);
+        // 우선순위별 집계
+        const priorityCount = { high: 0, medium: 0, low: 0 };
+        open.forEach((i: any) => {
+          if (i.priority === 'high') priorityCount.high++;
+          else if (i.priority === 'medium') priorityCount.medium++;
+          else if (i.priority === 'low') priorityCount.low++;
+        });
+        setOpenIssuePriorityCount(priorityCount);
       })
       .catch(e => setError('이슈 데이터 오류'))
       .finally(() => setLoading(false));
@@ -184,7 +213,10 @@ export default function SolutionDashboard() {
             type="week"
             className="border px-3 py-2 rounded text-black"
             value={selectedWeek}
-            onChange={e => setSelectedWeek(e.target.value)}
+            onChange={e => {
+              setSelectedWeek(e.target.value);
+              router.push(`/${solution}?week=${e.target.value}`);
+            }}
             style={{ width: 180 }}
           />
         </div>
@@ -206,7 +238,7 @@ export default function SolutionDashboard() {
               {clientTypeData.labels.map((l, i) => <span key={i}>{l}: {clientTypeData.values[i]}개</span>)}
             </div>
           </div>
-          <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-between md:col-span-2">
+          <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-between col-span-2">
             <div className="text-gray-600 text-sm mb-2 font-semibold">요일별 작업 건수</div>
             <div className="w-full h-40 flex items-center justify-center mb-6">
               <Bar
@@ -230,6 +262,8 @@ export default function SolutionDashboard() {
               {workByDayData.labels.map((l, i) => <span key={i}>{l}: {workByDayData.values[i]}건</span>)}
             </div>
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-between">
             <div className="text-gray-600 text-sm mb-2 font-semibold">이슈 상태별</div>
             <div className="w-40 h-40 flex items-center justify-center mb-6">
@@ -239,11 +273,42 @@ export default function SolutionDashboard() {
               {issueStatusData.labels.map((l, i) => <span key={i}>{l}: {issueStatusData.values[i]}건</span>)}
             </div>
           </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <ListCard title="신규 고객사" items={newClients} />
-          <ListCard title="주요 작업 내역" items={mainWorks} />
-          <ListCard title="미해결 이슈 Top 5" items={openIssues} />
+          <div className="flex flex-col gap-6">
+            <ListCard
+              title="주요 작업 내역"
+              items={mainWorks.map(w => `${w.client} ${w.content}`)}
+              renderItem={(_, i) => {
+                const w = mainWorks[i];
+                return (
+                  <li
+                    key={w.id}
+                    className="truncate max-w-full cursor-pointer hover:underline"
+                    onClick={() => router.push(`/${solution}/works?week=${selectedWeek}&selected=${w.id}`)}
+                  >
+                    • {w.client} {w.content}
+                  </li>
+                );
+              }}
+            />
+            <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-center">
+              <div className="text-gray-600 text-sm mb-2 font-semibold">미해결 이슈</div>
+              <div className="flex flex-row items-center gap-4">
+                <span className="text-base font-semibold">
+                  <span className="text-orange-500">높음:</span> <span className="text-black">{openIssuePriorityCount.high}건</span>
+                </span>
+                <span className="text-base font-semibold">
+                  <span className="text-yellow-400">보통:</span> <span className="text-black">{openIssuePriorityCount.medium}건</span>
+                </span>
+                <span className="text-base font-semibold">
+                  <span className="text-green-600">낮음:</span> <span className="text-black">{openIssuePriorityCount.low}건</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-6">
+            <ListCard title="신규 고객사" items={newClients} />
+            <ListCard title="라이선스 만료 고객사" items={expiredClients} renderItem={(item, i) => <li key={i} className="text-red-600 font-bold">• {item}</li>} />
+          </div>
         </div>
       </div>
     </div>

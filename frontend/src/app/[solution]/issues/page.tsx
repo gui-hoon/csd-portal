@@ -2,6 +2,7 @@
 import { useState, useEffect, use } from 'react';
 import { LayoutGrid, List, Plus, Search, Filter, MessageSquare, Calendar, User, Tag, AlertTriangle, CheckCircle, Clock, XCircle, Pencil, Trash } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // 이슈 상태별 아이콘과 색상
 const getStatusIcon = (status: string) => {
@@ -79,14 +80,16 @@ const getDateWithDay = (dateStr: string) => {
 export default function SolutionIssuesPage({ params }: { params: Promise<{ solution: string }> }) {
   const { solution } = use(params);
   const { user, token } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [mode, setMode] = useState<'tile'|'table'>('tile');
   const [issues, setIssues] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(() => searchParams?.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams?.get('status') || '');
+  const [priorityFilter, setPriorityFilter] = useState(() => searchParams?.get('priority') || '');
+  const [clientFilter, setClientFilter] = useState(() => searchParams?.get('client') || '');
+  const [page, setPage] = useState(() => Number(searchParams?.get('page')) || 1);
   const pageSize = 9;
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -100,6 +103,8 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   const [editContent, setEditContent] = useState('');
   const [deleteTargetComment, setDeleteTargetComment] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', client: '', assignee: '', priority: 'medium', status: 'in_progress', due_date: '', tags: '', content: '' });
 
   // 솔루션별 고객사 목록 불러오기
   useEffect(() => {
@@ -265,6 +270,60 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
     }
   };
 
+  // 수정 버튼 클릭 시 선택된 이슈 값으로 editForm 초기화
+  useEffect(() => {
+    if (showEditModal && selectedIssueIds.length === 1) {
+      const issue = issues.find(i => i.id === selectedIssueIds[0]);
+      if (issue) {
+        setEditForm({
+          title: issue.title || '',
+          client: issue.client || '',
+          assignee: issue.assignee || '',
+          priority: issue.priority || 'medium',
+          status: issue.status || 'in_progress',
+          due_date: issue.due_date ? issue.due_date.slice(0, 10) : '',
+          tags: (issue.tags || []).join(', '),
+          content: issue.content || '',
+        });
+      }
+    }
+  }, [showEditModal, selectedIssueIds, issues]);
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditForm(f => ({ ...f, [name]: value }));
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedIssueIds.length !== 1) return;
+    const form = {
+      ...editForm,
+      tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+      due_date: editForm.due_date ? new Date(editForm.due_date).toISOString() : null,
+    };
+    const res = await fetch(`/issues/${encodeURIComponent(solution)}/${selectedIssueIds[0]}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      setShowEditModal(false);
+      fetchIssues();
+    }
+  };
+
+  // 필터/검색/페이지 변경 시 URL 쿼리 동기화
+  const updateQuery = (next: Partial<{search: string, status: string, priority: string, client: string, page: number}>) => {
+    const params = new URLSearchParams();
+    params.set('page', String(next.page ?? page));
+    if (next.search !== undefined ? next.search : search) params.set('search', next.search !== undefined ? next.search : search);
+    if (next.status !== undefined ? next.status : statusFilter) params.set('status', next.status !== undefined ? next.status : statusFilter);
+    if (next.priority !== undefined ? next.priority : priorityFilter) params.set('priority', next.priority !== undefined ? next.priority : priorityFilter);
+    if (next.client !== undefined ? next.client : clientFilter) params.set('client', next.client !== undefined ? next.client : clientFilter);
+    router.push(`/${solution}/issues?${params.toString()}`);
+  };
+
   return (
     <>
       <div className="w-full bg-gray-100 py-3 px-8">
@@ -280,13 +339,13 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                 type="text"
                 placeholder="제목, 내용, 고객사, 담당자 검색"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); updateQuery({search: e.target.value, page: 1}); }}
                 className="border px-3 py-2 pl-10 rounded w-64 text-black"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => { setStatusFilter(e.target.value); updateQuery({status: e.target.value, page: 1}); }}
               className="border px-3 py-2 rounded text-black"
             >
               <option value="">전체 상태</option>
@@ -296,7 +355,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
             </select>
             <select
               value={priorityFilter}
-              onChange={e => setPriorityFilter(e.target.value)}
+              onChange={e => { setPriorityFilter(e.target.value); updateQuery({priority: e.target.value, page: 1}); }}
               className="border px-3 py-2 rounded text-black"
             >
               <option value="">전체 우선순위</option>
@@ -306,7 +365,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
             </select>
             <select
               value={clientFilter}
-              onChange={e => setClientFilter(e.target.value)}
+              onChange={e => { setClientFilter(e.target.value); updateQuery({client: e.target.value, page: 1}); }}
               className="border px-3 py-2 rounded text-black"
             >
               <option value="">전체 고객사</option>
@@ -317,6 +376,13 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
           </div>
           <div className="flex gap-2 items-center">
             <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition text-base font-medium">추가</button>
+            <button
+              onClick={() => setShowEditModal(true)}
+              disabled={selectedIssueIds.length !== 1}
+              className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 text-base font-medium"
+            >
+              수정
+            </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={selectedIssueIds.length === 0}
@@ -476,7 +542,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
               <div className="flex justify-center items-center mt-6 w-full">
                 <button
                   className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-100 transition disabled:opacity-50"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => { setPage(p => Math.max(1, p - 1)); updateQuery({page: Math.max(1, page - 1)}); }}
                   disabled={page === 1}
                 >
                   이전
@@ -484,7 +550,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                 <span className="mx-4 text-sm text-gray-700 font-semibold">{page} / {totalPages}</span>
                 <button
                   className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-100 transition disabled:opacity-50"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() => { setPage(p => Math.min(totalPages, p + 1)); updateQuery({page: Math.min(totalPages, page + 1)}); }}
                   disabled={page === totalPages}
                 >
                   다음
@@ -762,20 +828,114 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
           </div>
         )}
 
-        {editComment && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30" onClick={e => { if (e.target === e.currentTarget) setEditComment(null); }}>
-            <div className="bg-white p-6 rounded shadow-xl w-full max-w-md pointer-events-auto">
-              <h3 className="text-lg font-bold mb-4 text-black">댓글 수정</h3>
-              <textarea
-                className="w-full p-3 border rounded text-black resize-none mb-4"
-                rows={4}
-                value={editContent}
-                onChange={e => setEditContent(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <button className="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300" onClick={() => setEditComment(null)}>취소</button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleEditCommentSubmit}>저장</button>
-              </div>
+        {showEditModal && selectedIssueIds.length === 1 && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto" onClick={e => { if (e.target === e.currentTarget) setShowEditModal(false); }}>
+            <div className="bg-white p-8 rounded shadow-xl w-full max-w-xl pointer-events-auto">
+              <h2 className="text-xl font-bold mb-6 text-black">이슈 수정</h2>
+              <form className="space-y-4" onSubmit={handleEditSubmit}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제목</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-3 border rounded text-black"
+                    placeholder="이슈 제목을 입력하세요"
+                    name="title"
+                    value={editForm.title}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">고객사</label>
+                    <select 
+                      className="w-full p-3 border rounded text-black"
+                      name="client"
+                      value={editForm.client}
+                      onChange={handleEditChange}
+                    >
+                      <option value="">선택</option>
+                      {clients.map(client => (
+                        <option key={client.id} value={client.name}>{client.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-3 border rounded text-black"
+                      placeholder="담당자명"
+                      name="assignee"
+                      value={editForm.assignee}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">우선순위</label>
+                    <select 
+                      className="w-full p-3 border rounded text-black"
+                      name="priority"
+                      value={editForm.priority}
+                      onChange={handleEditChange}
+                    >
+                      <option value="high">높음</option>
+                      <option value="medium">보통</option>
+                      <option value="low">낮음</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
+                    <input 
+                      type="date" 
+                      className="w-full p-3 border rounded text-black"
+                      name="due_date"
+                      value={editForm.due_date}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">태그</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-3 border rounded text-black"
+                    placeholder="태그를 쉼표로 구분하여 입력"
+                    name="tags"
+                    value={editForm.tags}
+                    onChange={handleEditChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
+                  <select 
+                    className="w-full p-3 border rounded text-black"
+                    name="status"
+                    value={editForm.status}
+                    onChange={handleEditChange}
+                  >
+                    <option value="in_progress">진행중</option>
+                    <option value="waiting">대기중</option>
+                    <option value="resolved">해결됨</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">상세 내용</label>
+                  <textarea
+                    className="w-full p-3 border rounded text-black"
+                    placeholder="이슈 상세 내용을 입력하세요"
+                    name="content"
+                    value={editForm.content}
+                    onChange={handleEditChange}
+                    rows={4}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 bg-gray-200 text-black rounded">취소</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">수정</button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -59,7 +59,7 @@ class ClientUpdate(ClientBase):
     pass
 
 # 클라이언트(고객사) 스키마
-# (아래쪽 중복 정의 전체 삭제)
+# (아래쪽 중복 정의 전체 삭제) 
 
 class WorkBase(BaseModel):
     client: str

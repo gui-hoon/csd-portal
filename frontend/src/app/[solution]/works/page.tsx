@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, use } from 'react';
 import { LayoutGrid, List, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 // 솔루션별 고객사 목업
 const solutionClients: { [key: string]: string[] } = {
@@ -110,10 +112,12 @@ const getWeekRange = (weekStr: string) => {
 
 export default function SolutionWorksPage({ params }: { params: Promise<{ solution: string }> }) {
   const { solution } = use(params);
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [mode, setMode] = useState<'tile'|'table'>('tile');
-  const [week, setWeek] = useState('');
+  const [week, setWeek] = useState(() => searchParams?.get('week') || '');
   const [works, setWorks] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams?.get('search') || '');
   const [page, setPage] = useState(1);
   const pageSize = 9;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -124,7 +128,10 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
   const [clients, setClients] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null);
-  const [selectedWorks, setSelectedWorks] = useState<number[]>([]);
+  const [selectedWorks, setSelectedWorks] = useState<number[]>(() => {
+    const sel = searchParams?.get('selected');
+    return sel ? [Number(sel)] : [];
+  });
 
   useEffect(() => { setWeek(getCurrentWeek()); }, []);
   useEffect(() => { fetchWorks(); fetchClients(); }, [solution]);
@@ -240,6 +247,22 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
     }
   };
 
+  // 날짜(week) 변경 시 URL 쿼리 동기화
+  const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWeek(e.target.value);
+    router.push(`/${solution}/works?week=${e.target.value}${search ? `&search=${encodeURIComponent(search)}` : ''}${selectedWorks.length === 1 ? `&selected=${selectedWorks[0]}` : ''}`);
+  };
+  // 검색어 변경 시 URL 쿼리 동기화
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    router.push(`/${solution}/works?week=${week}${e.target.value ? `&search=${encodeURIComponent(e.target.value)}` : ''}${selectedWorks.length === 1 ? `&selected=${selectedWorks[0]}` : ''}`);
+  };
+  // 선택 변경 시 URL 쿼리 동기화
+  const handleSelectWork = (id: number) => {
+    setSelectedWorks([id]);
+    router.push(`/${solution}/works?week=${week}${search ? `&search=${encodeURIComponent(search)}` : ''}&selected=${id}`);
+  };
+
   return (
     <>
       <div className="w-full bg-gray-100 py-3 px-8">
@@ -252,13 +275,13 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
               type="text"
               placeholder="고객사/작업내용 검색"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="border px-3 py-2 rounded w-64 text-black"
             />
             <input
               type="week"
               value={week}
-              onChange={e => setWeek(e.target.value)}
+              onChange={handleWeekChange}
               className="border px-3 py-2 rounded text-black"
             />
           </div>
@@ -289,7 +312,7 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
                   <div
                     key={w.id}
                     className={`p-6 rounded-lg shadow transition flex flex-col gap-2 border min-h-[160px] cursor-pointer select-none relative ${selectedWorks.includes(w.id) ? 'border-gray-700 bg-gray-200' : 'border-transparent bg-gray-50 hover:shadow-md'}`}
-                    onClick={() => toggleSelectWork(w.id)}
+                    onClick={() => handleSelectWork(w.id)}
                   >
                     <div className="font-bold text-lg mb-1 text-black">{w.client}</div>
                     <div className="text-sm text-gray-800 mb-1">작업일: {getDateWithDay(w.date)}</div>
@@ -354,8 +377,8 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
         )}
         {/* 추가 모달 */}
         {showAddModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-            <form onSubmit={handleAddSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300 pointer-events-auto">
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto" onClick={() => setShowAddModal(false)}>
+            <form onClick={e => e.stopPropagation()} onSubmit={handleAddSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300">
               <h2 className="text-xl font-bold mb-4 text-black">작업 내역 추가</h2>
               <div className="flex flex-col gap-4">
                 {/* 1행: 고객사, 작업일 */}
@@ -392,8 +415,8 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
         )}
         {/* 수정 모달 */}
         {showEditModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-            <form onSubmit={handleEditSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300 pointer-events-auto">
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto" onClick={() => setShowEditModal(false)}>
+            <form onClick={e => e.stopPropagation()} onSubmit={handleEditSubmit} className="bg-white p-8 rounded shadow-xl w-full max-w-xl flex flex-col gap-4 text-black border border-gray-300">
               <h2 className="text-xl font-bold mb-4 text-black">작업 내역 수정</h2>
               <div className="flex flex-col gap-4">
                 {/* 1행: 고객사, 작업일 */}

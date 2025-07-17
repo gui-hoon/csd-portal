@@ -49,7 +49,7 @@ def delete_client(client_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Client not found")
     db.delete(db_client)
     db.commit()
-    return {"ok": True}
+    return {"ok": True} 
 
 @router.get("/solution/{solution}", response_model=List[schemas.Client])
 def list_clients_by_solution(solution: str, db: Session = Depends(get_db)):

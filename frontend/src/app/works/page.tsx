@@ -94,6 +94,11 @@ const getWeekRange = (weekStr: string) => {
   return [start, end];
 };
 
+/**
+ * 전체 작업내역 페이지
+ * - 전체 솔루션 작업 목록, 추가/수정/삭제, 주차/검색 등 지원
+ * - 타일/테이블 모드 지원
+ */
 export default function WorksPage() {
   const [mode, setMode] = useState<'tile'|'table'>('tile');
   const [week, setWeek] = useState('');

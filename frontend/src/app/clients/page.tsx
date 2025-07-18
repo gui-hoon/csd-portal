@@ -2,6 +2,10 @@
 import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
 
+/**
+ * 전체 고객사 오버뷰 페이지
+ * - 전체 고객사 목록, 검색, 메모 팝업 등 지원
+ */
 export default function ClientsOverviewPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState('');

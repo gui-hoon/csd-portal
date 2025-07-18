@@ -6,6 +6,10 @@ const solutions = [
   { name: 'RWS', icon: '/rws.png' },
 ];
 
+/**
+ * 전체 이슈 오버뷰 페이지
+ * - 솔루션별 이슈 게시판 진입 링크 제공
+ */
 export default function IssuesOverviewPage() {
   return (
     <div className="max-w-5xl mx-auto mt-12 p-8 bg-white rounded shadow">

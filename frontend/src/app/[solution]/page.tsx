@@ -5,44 +5,11 @@ import { Pie, Bar } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-function SummaryCard({ title, value }: { title: string, value: number|string }) {
-  return (
-    <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-center">
-      <div className="text-gray-600 text-sm mb-2">{title}</div>
-      <div className="text-2xl font-bold text-black">{value}</div>
-    </div>
-  );
-}
-
-function ListCard({ title, items, renderItem }: { title: string, items: string[], renderItem?: (item: string, i: number) => React.ReactNode }) {
-  return (
-    <div className="bg-white rounded shadow border border-gray-200 p-6">
-      <div className="text-gray-600 text-sm mb-2 font-semibold">{title}</div>
-      <ul className="text-black text-sm space-y-1">
-        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => renderItem ? renderItem(item, i) : <li key={i} className="truncate max-w-full">• {item}</li>)}
-      </ul>
-    </div>
-  );
-}
-
-// 선택한 주의 날짜 범위 계산 함수
-function getWeekRange(weekStr: string) {
-  // weekStr: 'YYYY-Www' 형식
-  if (!weekStr) return '';
-  const [year, week] = weekStr.split('-W');
-  if (!year || !week) return '';
-  // ISO week: 월요일 시작
-  const firstDay = new Date(Number(year), 0, 1);
-  const dayOfWeek = firstDay.getDay();
-  const dayOffset = (dayOfWeek <= 4 ? dayOfWeek - 1 : dayOfWeek - 8); // ISO: 0(일)~6(토)
-  const monday = new Date(Number(year), 0, 1 - dayOffset + (Number(week) - 1) * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  const format = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
-  return `${format(monday)} ~ ${format(sunday)}`;
-}
-
+/**
+ * 솔루션별 대시보드 페이지
+ * - 고객사, 작업, 이슈 등 주요 현황을 주차별로 시각화
+ * - URL 쿼리(week)와 상태 동기화
+ */
 export default function SolutionDashboard() {
   const params = useParams();
   const router = useRouter();
@@ -313,4 +280,52 @@ export default function SolutionDashboard() {
       </div>
     </div>
   );
+}
+
+/**
+ * 요약 카드 컴포넌트
+ * - 타이틀과 값 표시
+ */
+function SummaryCard({ title, value }: { title: string, value: number|string }) {
+  return (
+    <div className="bg-white rounded shadow border border-gray-200 p-6 flex flex-col items-center justify-center">
+      <div className="text-gray-600 text-sm mb-2">{title}</div>
+      <div className="text-2xl font-bold text-black">{value}</div>
+    </div>
+  );
+}
+
+/**
+ * 리스트 카드 컴포넌트
+ * - 타이틀과 리스트 항목 표시
+ */
+function ListCard({ title, items, renderItem }: { title: string, items: string[], renderItem?: (item: string, i: number) => React.ReactNode }) {
+  return (
+    <div className="bg-white rounded shadow border border-gray-200 p-6">
+      <div className="text-gray-600 text-sm mb-2 font-semibold">{title}</div>
+      <ul className="text-black text-sm space-y-1">
+        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => renderItem ? renderItem(item, i) : <li key={i} className="truncate max-w-full">• {item}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * 주차 문자열(YYYY-Www)로 날짜 범위(월~일) 반환
+ */
+function getWeekRange(weekStr: string) {
+  // weekStr: 'YYYY-Www' 형식
+  if (!weekStr) return '';
+  const [year, week] = weekStr.split('-W');
+  if (!year || !week) return '';
+  // ISO week: 월요일 시작
+  const firstDay = new Date(Number(year), 0, 1);
+  const dayOfWeek = firstDay.getDay();
+  const dayOffset = (dayOfWeek <= 4 ? dayOfWeek - 1 : dayOfWeek - 8); // ISO: 0(일)~6(토)
+  const monday = new Date(Number(year), 0, 1 - dayOffset + (Number(week) - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const format = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} (${days[d.getDay()]})`;
+  return `${format(monday)} ~ ${format(sunday)}`;
 } 

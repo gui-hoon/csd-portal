@@ -9,6 +9,11 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/issues", tags=["issues"])
 
+"""
+이슈/댓글 API 라우터
+- 이슈 목록, 상세, 추가/수정/삭제, 댓글 관리 등
+"""
+
 # 이슈 목록 조회 (필터/검색/페이지네이션)
 @router.get("/{solution}", response_model=List[IssueSchema])
 def list_issues(

@@ -3,6 +3,11 @@ from datetime import datetime, date
 from typing import Optional, List
 import enum
 
+"""
+Pydantic 스키마 정의
+- Client, User, Work, Issue, IssueComment 등 API 데이터 구조
+"""
+
 # Client(고객사) 스키마
 class ClientBase(BaseModel):
     name: str

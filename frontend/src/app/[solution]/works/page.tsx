@@ -13,11 +13,6 @@ const solutionClients: { [key: string]: string[] } = {
   RWS: ['F사'],
 };
 
-const mockWorks = [
-  { id: 1, client: 'A사', date: '2024-06-03', content: '서버 점검', issue: '없음' },
-  { id: 2, client: 'B사', date: '2024-06-04', content: '신규 구축', issue: '설정 오류' },
-];
-
 function getKoreanWeekLabel(weekStr: string) {
   if (!weekStr) return '';
   const [year, week] = weekStr.split('-W').map(Number);
@@ -110,6 +105,11 @@ const getWeekRange = (weekStr: string) => {
   return [start, end];
 };
 
+/**
+ * 솔루션별 작업내역 페이지
+ * - 작업 목록, 추가/수정/삭제, 주차/검색/선택 등 상태 URL 동기화
+ * - 타일/테이블 모드 지원
+ */
 export default function SolutionWorksPage({ params }: { params: Promise<{ solution: string }> }) {
   const { solution } = use(params);
   const searchParams = useSearchParams();

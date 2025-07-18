@@ -77,6 +77,11 @@ const getDateWithDay = (dateStr: string) => {
   return `${y}-${m}-${d} (${day})`;
 };
 
+/**
+ * 솔루션별 이슈 게시판 페이지
+ * - 이슈 목록, 추가/수정/상세/댓글, 필터/검색/선택 등 상태 URL 동기화
+ * - 타일/테이블 모드 지원
+ */
 export default function SolutionIssuesPage({ params }: { params: Promise<{ solution: string }> }) {
   const { solution } = use(params);
   const { user, token } = useAuth();

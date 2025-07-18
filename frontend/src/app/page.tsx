@@ -1,3 +1,7 @@
+/**
+ * 홈(메인) 페이지 컴포넌트
+ * - 포털 소개 및 솔루션 목록 안내
+ */
 export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center gap-8 py-32">

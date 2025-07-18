@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   description: "Cloud Solution Division Portal",
 };
 
+/**
+ * 루트 레이아웃 컴포넌트
+ * - 글로벌 스타일, 인증 Provider, BodyWrapper 적용
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">

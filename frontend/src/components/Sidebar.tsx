@@ -3,7 +3,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+/**
+ * 사이드바 컴포넌트
+ * - 솔루션별 네비게이션 및 로고 영역
+ */
 const Sidebar = () => {
+  // 솔루션 목록
   const solutions = [
     { name: 'AppDynamics', icon: '/appdynamics.png' },
     { name: 'Dynatrace', icon: '/dynatrace.png' },
@@ -11,12 +16,13 @@ const Sidebar = () => {
     { name: 'New Relic', icon: '/newrelic.png' },
     { name: 'RWS', icon: '/rws.png' },
   ];
+  // 현재 솔루션 추출
   const pathname = usePathname();
   const currentSolution = pathname.split('/')[1];
 
   return (
     <aside className="bg-white text-gray-800 w-64 flex-shrink-0 flex flex-col border-r-2 border-gray-200">
-      {/* Logo and Title Section */}
+      {/* 로고 및 타이틀 영역 */}
       <button
         onClick={() => window.location.href = '/'}
         className="flex items-center space-x-3 p-4 border-b-2 border-gray-200 w-full bg-transparent border-none cursor-pointer text-left block"
@@ -33,7 +39,7 @@ const Sidebar = () => {
         <span className="text-xl font-semibold text-gray-900">CSD Portal</span>
       </button>
 
-      {/* Navigation Section */}
+      {/* 네비게이션 영역 */}
       <div className="p-4">
         <nav>
           <ul>

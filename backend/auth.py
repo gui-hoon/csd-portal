@@ -20,7 +20,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# 비밀번호 해싱/검증
+"""
+인증 및 사용자 관리 라우터
+- 회원가입, 로그인, 사용자 정보 갱신, 권한 관리 등
+"""
+
+# 비밀번호 해싱 및 검증 함수
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
@@ -28,7 +33,7 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-# JWT 토큰 생성
+# JWT 토큰 생성 함수
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -37,12 +42,12 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# JWT 토큰에서 사용자 정보 추출
+# JWT 토큰에서 사용자 정보 추출 함수
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="인증 정보가 유효하지 않습니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -57,7 +62,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
-# 회원가입
+# 회원가입 API
 @router.post("/signup", response_model=UserRead)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -76,7 +81,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# 로그인
+# 로그인 API (JSON 또는 Form 지원)
 @router.post("/login")
 async def login(request: Request, db: Session = Depends(get_db)):
     try:
@@ -100,6 +105,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role.value})
     return {"access_token": access_token, "token_type": "bearer", "user": {"id": db_user.id, "name": db_user.name, "email": db_user.email, "role": db_user.role.value}} 
 
+# 내 정보 수정 API
 @router.put("/me", response_model=UserRead)
 def update_me(update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.query(User).filter(User.id == current_user.id).first()
@@ -120,6 +126,7 @@ def update_me(update: UserUpdate, db: Session = Depends(get_db), current_user: U
 
 users_router = APIRouter()
 
+# 전체 사용자 조회 (관리자 전용)
 @users_router.get("/users", response_model=List[UserRead])
 def get_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.admin:
@@ -127,6 +134,7 @@ def get_users(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     users = db.query(User).all()
     return users
 
+# 사용자 활성화 (관리자 전용)
 @users_router.patch("/users/{user_id}/activate", response_model=UserRead)
 def activate_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.admin:
@@ -139,6 +147,7 @@ def activate_user(user_id: int, db: Session = Depends(get_db), current_user: Use
     db.refresh(user)
     return user
 
+# 사용자 권한 변경 (관리자 전용, 자기 자신은 불가)
 @users_router.patch("/users/{user_id}/role", response_model=UserRead)
 def change_user_role(user_id: int, role: UserRole, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.admin:

@@ -4,10 +4,18 @@ import Link from 'next/link';
 import { useAuth } from './AuthProvider';
 import { usePathname } from 'next/navigation';
 
+/**
+ * 헤더 컴포넌트
+ * - 네비게이션, 사용자 메뉴, 로그아웃 등 상단 바 역할
+ */
 const Header = () => {
+  // 인증 관련 함수
   const { logout } = useAuth();
+  // 드롭다운 메뉴 열림 상태
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  // 드롭다운 참조
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // 현재 경로명
   const pathname = usePathname();
 
   // 현재 솔루션 컨텍스트 추출
@@ -15,7 +23,7 @@ const Header = () => {
   const notSolutionPages = ['clients','docs','issues','login','signup','setting','works','account','setting'];
   const solution = match && !notSolutionPages.includes(match[1]) ? match[1] : null;
 
-  // 클릭 외부 감지로 드롭다운 닫기
+  // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -34,10 +42,10 @@ const Header = () => {
 
   return (
     <header className="bg-white text-gray-800 p-4 flex items-center shadow-sm z-10">
-      {/* Left-aligned logo */}
+      {/* 좌측 여백 */}
       <div className="flex-1"></div>
       
-      {/* Centered navigation */}
+      {/* 중앙 네비게이션 */}
       <nav className="flex-1">
         <ul className="flex justify-center space-x-8">
           <li>
@@ -75,7 +83,7 @@ const Header = () => {
         </ul>
       </nav>
 
-      {/* Right-aligned actions */}
+      {/* 우측 사용자 메뉴 및 ChatAI */}
       <div className="flex-1 flex justify-end items-center space-x-6 relative">
         <a href="#" className="font-semibold text-gray-600 hover:text-red-600 transition-colors">ChatAI</a>
         <div className="relative" ref={dropdownRef}>

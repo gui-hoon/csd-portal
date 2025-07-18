@@ -6,6 +6,11 @@ import models, schemas
 
 router = APIRouter(prefix="/works", tags=["works"])
 
+"""
+작업내역 API 라우터
+- 작업 목록, 상세, 추가/수정/삭제, 솔루션별/기간별 조회 등
+"""
+
 @router.get("/", response_model=List[schemas.Work])
 def list_works(solution: Optional[str] = Query(None), db: Session = Depends(get_db)):
     q = db.query(models.Work)

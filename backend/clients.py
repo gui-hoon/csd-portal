@@ -6,6 +6,11 @@ import models, schemas
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
+"""
+고객사 API 라우터
+- 고객사 목록, 상세, 추가/수정/삭제, 솔루션별 조회 등
+"""
+
 @router.get("/", response_model=List[schemas.Client])
 def list_clients(db: Session = Depends(get_db)):
     return db.query(models.Client).all()

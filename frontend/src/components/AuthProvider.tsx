@@ -20,14 +20,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * 인증 컨텍스트 및 인증 상태 관리 Provider
+ * - 로그인/로그아웃, 사용자 정보, 토큰 관리
+ * - 인증 필요 페이지 접근 제어
+ */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // 사용자 정보 상태
   const [user, setUser] = useState<User | null>(null);
+  // 인증 토큰 상태
   const [token, setToken] = useState<string | null>(null);
+  // 로딩 상태
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    // 로컬스토리지에서 인증 정보 불러오기
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
     if (storedToken && storedUser) {
@@ -53,6 +62,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [token, pathname, router, isLoading]);
 
+  /**
+   * 로그인 함수
+   * - 토큰/사용자 정보 저장 및 리다이렉트
+   */
   const login = (token: string, user: User, redirectTo?: string | null) => {
     setToken(token);
     setUser(user);
@@ -64,6 +77,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // redirectTo가 undefined/null이면 리다이렉트하지 않음
   };
 
+  /**
+   * 로그아웃 함수
+   * - 인증 정보 삭제 및 /login으로 이동
+   */
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -78,7 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   if (isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
-        {/* <span>로딩중...</span> */}
+        {/* 로딩중... */}
       </div>
     );
   }
@@ -100,6 +117,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+/**
+ * 인증 컨텍스트 사용 훅
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");

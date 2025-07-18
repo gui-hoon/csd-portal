@@ -4,6 +4,11 @@ from database import Base
 import enum
 from sqlalchemy.dialects.postgresql import JSONB
 
+"""
+DB 모델 정의
+- User, Client, Work, Issue, IssueComment 등 테이블 구조 및 Enum
+"""
+
 class UserRole(enum.Enum):
     admin = "admin"
     editor = "editor"

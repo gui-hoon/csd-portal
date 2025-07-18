@@ -53,6 +53,11 @@ const getLicenseStatusClass = (license_end: string) => {
   return 'bg-gray-50 border-transparent';
 };
 
+/**
+ * 솔루션별 고객사 페이지
+ * - 고객사 목록, 추가/수정/삭제, 검색/선택 등 상태 URL 동기화
+ * - 타일/테이블 모드 지원
+ */
 export default function SolutionClientsPage() {
   const params = useParams();
   const solution = params?.solution as string | undefined;

@@ -22,10 +22,11 @@ const SignupPage = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/signup', {
+      const form = { name, email, password };
+      const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify(form),
       });
       if (!res.ok) {
         const data = await res.json();

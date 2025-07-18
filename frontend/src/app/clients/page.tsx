@@ -11,8 +11,6 @@ export default function ClientsOverviewPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
   const [memoPopup, setMemoPopup] = useState<{ open: boolean; memo: string; anchorX?: number; anchorY?: number; anchorW?: number }>({ open: false, memo: '' });
-  const [page, setPage] = useState(1);
-  const pageSize = 9;
 
   // 솔루션명 매핑 (좌측탭과 동일하게)
   const solutionNames = ['AppDynamics', 'Dynatrace', 'NetScout', 'NewRelic', 'RWS'];
@@ -23,7 +21,7 @@ export default function ClientsOverviewPage() {
   };
 
   useEffect(() => {
-    fetch('http://10.10.19.189:8000/clients')
+    fetch('/api/clients')
       .then(res => res.json())
       .then(setClients);
   }, []);
@@ -35,8 +33,6 @@ export default function ClientsOverviewPage() {
     return new Date(a.license_start).getTime() - new Date(b.license_start).getTime();
   });
   const filteredClients = sortedClients.filter(c => c.name.includes(search));
-  const totalPages = Math.ceil(filteredClients.length / pageSize);
-  const pagedClients = filteredClients.slice((page - 1) * pageSize, page * pageSize);
 
   const toggleSelect = (id: number) => {
     setSelected(sel => sel.includes(id) ? sel.filter(i => i !== id) : [...sel, id]);
@@ -69,57 +65,64 @@ export default function ClientsOverviewPage() {
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {pagedClients.map(c => (
-            <div
-              key={c.id}
-              className={`p-6 rounded-lg shadow hover:shadow-md transition flex flex-col gap-2 border ${selected.includes(c.id) ? 'border-gray-700 bg-gray-200' : getLicenseStatusClass(c.license_end) || 'bg-gray-50 border-transparent'}`}
-              onClick={() => toggleSelect(c.id)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="relative">
-                {c.memo && (
-                  <button
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 z-10"
-                    style={{ lineHeight: 0 }}
-                    onClick={e => {
-                      e.stopPropagation();
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      setMemoPopup({ open: true, memo: c.memo, anchorX: rect.left + rect.width / 2, anchorY: rect.top + window.scrollY + rect.height / 2, anchorW: rect.width });
-                    }}
-                    title="메모 보기"
-                  >
-                    <FileText className="w-5 h-5 text-gray-600" />
-                  </button>
-                )}
-                <div className="font-bold text-lg mb-1 text-black">{c.name}</div>
-                <div className="text-sm text-gray-800 mb-1">계약 종류: {c.contract_type}</div>
-                <div className="text-sm text-gray-800 mb-1">
-                  솔루션: {getSolutionLabel(c.solution)}
-                </div>
-                <div className="text-sm text-gray-800 mb-1">라이선스: {c.license_start} ~ {c.license_end}</div>
-                {selected.includes(c.id) && <div className="text-xs text-red-600">선택됨</div>}
+        {/* 솔루션별 그룹핑 */}
+        {solutionNames.map(solution => {
+          const group = filteredClients.filter(c => (c.solution || '').toLowerCase() === solution.toLowerCase());
+          if (group.length === 0) return null;
+          return (
+            <div key={solution} className="mb-10">
+              <h2 className="text-lg font-bold mb-3 text-black">{solution}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {group.map(c => {
+                  let tileColorClass = '';
+                  if (!selected.includes(c.id)) {
+                    const end = c.license_end;
+                    if (end && end !== '9999-12-31') {
+                      const diff = (new Date(end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
+                      if (diff < 0) tileColorClass = 'bg-red-50 border-red-400';
+                      else if (diff <= 7) tileColorClass = 'bg-orange-50 border-orange-400';
+                      else tileColorClass = 'bg-white border-gray-200';
+                    } else {
+                      tileColorClass = 'bg-white border-gray-200';
+                    }
+                  } else {
+                    tileColorClass = 'bg-gray-200 border-gray-700';
+                  }
+                  return (
+                    <div
+                      key={c.id}
+                      className={`p-6 rounded-lg shadow hover:shadow-md transition flex flex-col gap-2 border min-h-[160px] ${tileColorClass}`}
+                      onClick={() => toggleSelect(c.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="relative">
+                        {c.memo && (
+                          <button
+                            className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 z-10"
+                            style={{ lineHeight: 0 }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setMemoPopup({ open: true, memo: c.memo, anchorX: rect.left + rect.width / 2, anchorY: rect.top + window.scrollY + rect.height / 2, anchorW: rect.width });
+                            }}
+                            title="메모 보기"
+                          >
+                            <FileText className="w-5 h-5 text-gray-600" />
+                          </button>
+                        )}
+                        <div className="font-bold text-lg mb-1 text-black">{c.name}</div>
+                        <div className="text-sm text-gray-800 mb-1">계약 종류: {c.contract_type}</div>
+                        <div className="text-sm text-gray-800 mb-1">솔루션: {getSolutionLabel(c.solution)}</div>
+                        <div className="text-sm text-gray-800 mb-1">라이선스: {c.license_start} ~ {c.license_end}</div>
+                        {selected.includes(c.id) && <div className="text-xs text-red-600">선택됨</div>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
-        <div className="flex justify-center items-center mt-6 w-full">
-            <button
-              className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-100 transition disabled:opacity-50"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              이전
-            </button>
-            <span className="mx-4 text-sm text-gray-700 font-semibold">{page} / {totalPages || 1}</span>
-            <button
-              className="px-3 py-1 rounded border border-gray-300 bg-white text-black hover:bg-gray-100 transition disabled:opacity-50"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages || totalPages === 0}
-            >
-              다음
-            </button>
-        </div>
+          );
+        })}
       </div>
       {/* 메모 팝업 */}
       {memoPopup.open && (

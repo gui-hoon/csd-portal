@@ -136,11 +136,11 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
   useEffect(() => { setWeek(getCurrentWeek()); }, []);
   useEffect(() => { fetchWorks(); fetchClients(); }, [solution]);
   const fetchWorks = async () => {
-    const res = await fetch(`/api/works?solution=${encodeURIComponent(solution)}`);
+    const res = await fetch(`/api/works/solution/${encodeURIComponent(solution)}`);
     if (res.ok) setWorks(await res.json());
   };
   const fetchClients = async () => {
-    const res = await fetch('http://10.10.19.189:8000/clients');
+    const res = await fetch('/api/clients');
     if (res.ok) {
       const allClients = await res.json();
       setClients(allClients.filter((c: any) => c.solution === solution));
@@ -199,15 +199,8 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
     setEditId(null);
     fetchWorks();
   };
-  const handleDelete = (id: string | number) => {
-    setDeleteTargetId(id);
-    setShowDeleteConfirm(true);
-  };
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    await fetch(`/api/works/${deleteTargetId}`, { method: 'DELETE' });
-    setShowDeleteConfirm(false);
-    setDeleteTargetId(null);
+  const handleDelete = async (id: string | number) => {
+    await fetch(`/api/works/${id}`, { method: 'DELETE' });
     fetchWorks();
   };
 
@@ -256,11 +249,6 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     router.push(`/${solution}/works?week=${week}${e.target.value ? `&search=${encodeURIComponent(e.target.value)}` : ''}${selectedWorks.length === 1 ? `&selected=${selectedWorks[0]}` : ''}`);
-  };
-  // 선택 변경 시 URL 쿼리 동기화
-  const handleSelectWork = (id: number) => {
-    setSelectedWorks([id]);
-    router.push(`/${solution}/works?week=${week}${search ? `&search=${encodeURIComponent(search)}` : ''}&selected=${id}`);
   };
 
   return (
@@ -311,8 +299,8 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
                 {pagedWorks.map(w => (
                   <div
                     key={w.id}
-                    className={`p-6 rounded-lg shadow transition flex flex-col gap-2 border min-h-[160px] cursor-pointer select-none relative ${selectedWorks.includes(w.id) ? 'border-gray-700 bg-gray-200' : 'border-transparent bg-gray-50 hover:shadow-md'}`}
-                    onClick={() => handleSelectWork(w.id)}
+                    className={`p-6 rounded-lg shadow transition flex flex-col gap-2 border min-h-[160px] cursor-pointer select-none relative ${selectedWorks.includes(w.id) ? 'border-gray-700 bg-gray-200' : 'bg-white border-gray-200 hover:shadow-md'}`}
+                    onClick={() => toggleSelectWork(w.id)}
                   >
                     <div className="font-bold text-lg mb-1 text-black">{w.client}</div>
                     <div className="text-sm text-gray-800 mb-1">작업일: {getDateWithDay(w.date)}</div>
@@ -325,28 +313,25 @@ export default function SolutionWorksPage({ params }: { params: Promise<{ soluti
               <table className="w-full mt-4 text-left text-black">
                 <thead>
                   <tr className="bg-gray-100 text-black">
+                    <th className="px-4 py-2 text-black">
+                      <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                    </th>
                     <th className="px-4 py-2 text-black">고객사</th>
                     <th className="px-4 py-2 text-black">작업일</th>
                     <th className="px-4 py-2 text-black">작업내용</th>
                     <th className="px-4 py-2 text-black">이슈</th>
-                    <th className="px-4 py-2 text-black">관리</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedWorks.map(w => (
                     <tr key={w.id} className="border-b text-black">
+                      <td className="px-4 py-2 text-black">
+                        <input type="checkbox" checked={selectedWorks.includes(w.id)} onChange={() => toggleSelectWork(w.id)} />
+                      </td>
                       <td className="px-4 py-2 text-black">{w.client}</td>
                       <td className="px-4 py-2 text-black">{getDateWithDay(w.date)}</td>
                       <td className="px-4 py-2 text-black">{w.content}</td>
                       <td className="px-4 py-2 text-black">{w.issue || 'X'}</td>
-                      <td className="px-4 py-2 text-black flex flex-row gap-1">
-                        <button onClick={()=>handleEdit(w)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition flex items-center gap-1">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={()=>handleDelete(w.id)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition flex items-center gap-1">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -5,6 +5,10 @@ import { Pie, Bar } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
+type Client = { id: number; name: string; };
+type Work = { id: number; client: string; content: string; date: string; [key: string]: any };
+type Issue = { id: number; client: string; title: string; [key: string]: any };
+
 /**
  * 솔루션별 대시보드 페이지
  * - 고객사, 작업, 이슈 등 주요 현황을 주차별로 시각화
@@ -28,10 +32,8 @@ export default function SolutionDashboard() {
   const [openIssuePriorityCount, setOpenIssuePriorityCount] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
-  const [expiredClients, setExpiredClients] = useState<string[]>([]);
+  const [expiredClients, setExpiredClients] = useState<any[]>([]);
 
-  // 오늘 날짜, 주차 계산 (간단 예시)
-  const today = new Date().toLocaleDateString('ko-KR');
   // 주 단위 선택 상태
   const [selectedWeek, setSelectedWeek] = useState(() => {
     const urlWeek = searchParams?.get('week');
@@ -65,7 +67,7 @@ export default function SolutionDashboard() {
     const startDate = start instanceof Date ? start.toISOString().slice(0,10) : '';
     const endDate = end instanceof Date ? end.toISOString().slice(0,10) : '';
     // 1. 고객사 fetch
-    fetch(`/clients/solution/${solution}`)
+    fetch(`/api/clients/solution/${solution}`)
       .then(res => res.json())
       .then(data => {
         // 선택한 주차(기간)에 등록되어 있는 고객사만 필터링
@@ -88,17 +90,17 @@ export default function SolutionDashboard() {
           return d >= start && d <= end;
         }).map((c: any) => c.name);
         setNewClients(newList.slice(0,5));
-        // 라이선스 만료 고객사(만료일이 end 이하인 경우 모두 표시)
+        // 라이선스 만료/임박 고객사(객체 전체 저장)
         const expiredList = data.filter((c: any) => {
           if (!c.license_end) return false;
           const d = new Date(c.license_end);
           return d <= end;
-        }).map((c: any) => c.name);
+        });
         setExpiredClients(expiredList);
       })
       .catch(e => setError('고객사 데이터 오류'));
     // 2. 작업 fetch
-    fetch(`http://10.10.19.189:8000/works/solution/${solution}?start=${startDate}&end=${endDate}`)
+    fetch(`/api/works/solution/${solution}?start=${startDate}&end=${endDate}`)
       .then(res => res.json())
       .then(data => {
         setWorkCount(data.length);
@@ -114,7 +116,7 @@ export default function SolutionDashboard() {
       })
       .catch(e => setError('작업 데이터 오류'));
     // 3. 이슈 fetch
-    fetch(`/issues/${solution}?start=${startDate}&end=${endDate}`)
+    fetch(`/api/issues/${solution}?start=${startDate}&end=${endDate}`)
       .then(res => res.json())
       .then(data => {
         setIssueCount(data.length);
@@ -274,7 +276,19 @@ export default function SolutionDashboard() {
           </div>
           <div className="flex flex-col gap-6">
             <ListCard title="신규 고객사" items={newClients} />
-            <ListCard title="라이선스 만료 고객사" items={expiredClients} renderItem={(item, i) => <li key={i} className="text-red-600 font-bold">• {item}</li>} />
+            <ListCard
+              title="라이선스 만료/임박 고객사"
+              items={expiredClients}
+              renderItem={(client, i) => {
+                const d = new Date(client.license_end);
+                const now = new Date();
+                const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                let color = 'text-black';
+                if (diff < 0) color = 'text-red-600 font-bold';
+                else if (diff <= 7) color = 'text-orange-500 font-bold';
+                return <li key={i} className={color}>• {client.name}</li>;
+              }}
+            />
           </div>
         </div>
       </div>
@@ -299,12 +313,12 @@ function SummaryCard({ title, value }: { title: string, value: number|string }) 
  * 리스트 카드 컴포넌트
  * - 타이틀과 리스트 항목 표시
  */
-function ListCard({ title, items, renderItem }: { title: string, items: string[], renderItem?: (item: string, i: number) => React.ReactNode }) {
+function ListCard({ title, items, renderItem }: { title: string, items: any[], renderItem?: (item: any, i: number) => React.ReactNode }) {
   return (
     <div className="bg-white rounded shadow border border-gray-200 p-6">
       <div className="text-gray-600 text-sm mb-2 font-semibold">{title}</div>
       <ul className="text-black text-sm space-y-1">
-        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => renderItem ? renderItem(item, i) : <li key={i} className="truncate max-w-full">• {item}</li>)}
+        {items.length === 0 ? <li className="text-gray-400">데이터 없음</li> : items.map((item, i) => renderItem ? renderItem(item, i) : <li key={i} className="truncate max-w-full">• {item.name ?? item}</li>)}
       </ul>
     </div>
   );

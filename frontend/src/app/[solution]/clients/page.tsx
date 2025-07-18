@@ -5,20 +5,8 @@ import { useAuth } from '@/components/AuthProvider';
 import { List, LayoutGrid, FileText } from 'lucide-react';
 
 // API 연동용 클라이언트 타입
-type Client = {
-  id: number;
-  name: string;
-  contract_type: string;
-  license_type: string;
-  license_start: string;
-  license_end: string;
-  manager_name: string;
-  manager_email: string;
-  manager_phone: string;
-  location: string;
-  note?: string;
-  [key: string]: string | number | undefined;
-};
+type Client = { id: number; name: string; contract_type: string; license_type: string; license_start: string; license_end: string; solution: string; manager_name?: string; manager_email?: string; manager_phone?: string; location?: string; memo?: string; is_active?: boolean; created_at?: string; updated_at?: string; [key: string]: string | number | boolean | undefined; };
+type ClientForm = { name: string; solution: string; contract_type: string; license_type: string; license_start: string; license_end: string; manager_name: string; manager_email: string; manager_phone: string; location: string; memo: string; };
 
 const columns = [
   { key: 'name', label: '고객사' },
@@ -32,15 +20,6 @@ const columns = [
   { key: 'location', label: '고객사 위치' },
   { key: 'memo', label: '메모' },
 ];
-
-// 라이선스 종료일이 일주일 이내인지 판별하는 함수
-const isLicenseEndingSoon = (license_end: string) => {
-  if (!license_end || license_end === '9999-12-31') return false;
-  const end = new Date(license_end);
-  const now = new Date();
-  const diff = (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-  return diff <= 7 && diff >= 0;
-};
 
 // 라이선스 만료/임박 색상 판별 함수
 const getLicenseStatusClass = (license_end: string) => {
@@ -63,7 +42,7 @@ export default function SolutionClientsPage() {
   const solution = params?.solution as string | undefined;
   const { user } = useAuth();
   const [view, setView] = useState<'table' | 'tile'>('tile');
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<number[]>([]);
   const [colWidths, setColWidths] = useState<number[]>(Array(columns.length).fill(140));
@@ -100,7 +79,7 @@ export default function SolutionClientsPage() {
   };
 
   // 컬럼 리사이즈 핸들러
-  const startResize = (idx: number, e: React.MouseEvent) => {
+  const startResize = (idx: number) => {
     resizingCol.current = idx;
     document.body.style.cursor = 'col-resize';
   };
@@ -129,36 +108,26 @@ export default function SolutionClientsPage() {
 
   // API에서 클라이언트 목록 불러오기
   useEffect(() => {
-    fetch('http://10.10.19.189:8000/clients')
+    fetch('/api/clients')
       .then(res => res.json())
       .then(setClients);
   }, []);
 
   // 추가 모달 상태
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({
-    name: '',
-    solution: solution || '',
-    contract_type: '',
-    license_type: '',
-    license_start: '',
-    license_end: '',
-    manager_name: '',
-    manager_email: '',
-    manager_phone: '',
-    location: '',
-    memo: '',
+  const [addForm, setAddForm] = useState<ClientForm>({
+    name: '', solution: solution ?? '', contract_type: '', license_type: '', license_start: '', license_end: '',
+    manager_name: '', manager_email: '', manager_phone: '', location: '', memo: '',
   });
 
   const handleAddChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     setAddForm(f => {
       if (name === 'license_type' && value === '영구') {
         return { ...f, [name]: value, license_end: '9999-12-31' };
       } else if (name === 'license_type') {
         return { ...f, [name]: value, license_end: '' };
       } else if (name === 'license_end' && f.license_type === '영구') {
-        // 영구일 때는 종료일을 강제로 9999-12-31로 고정
         return { ...f, license_end: '9999-12-31' };
       } else {
         return { ...f, [name]: value };
@@ -170,22 +139,20 @@ export default function SolutionClientsPage() {
     e.preventDefault();
     // 빈 문자열을 null로 변환
     const payload = Object.fromEntries(
-      Object.entries({ ...addForm, solution: solution || '' }).map(([k, v]) => [k, v === '' ? null : v])
+      Object.entries({ ...addForm, solution: solution ?? '' }).map(([k, v]) => [k, v === '' ? null : v])
     );
-    console.log('전송값:', payload);
-    const res = await fetch('http://10.10.19.189:8000/clients', {
+    const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     if (res.ok) {
       setShowAddModal(false);
-      // 전체 목록 새로고침
-      fetch('http://10.10.19.189:8000/clients')
+      fetch('/api/clients')
         .then(res => res.json())
         .then(setClients);
       setAddForm({
-        name: '', solution: solution || '', contract_type: '', license_type: '', license_start: '', license_end: '',
+        name: '', solution: solution ?? '', contract_type: '', license_type: '', license_start: '', license_end: '',
         manager_name: '', manager_email: '', manager_phone: '', location: '', memo: '',
       });
     } else {
@@ -201,7 +168,10 @@ export default function SolutionClientsPage() {
 
   // 수정 모달 상태
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ ...addForm });
+  const [editForm, setEditForm] = useState<ClientForm>({
+    name: '', solution: solution ?? '', contract_type: '', license_type: '', license_start: '', license_end: '',
+    manager_name: '', manager_email: '', manager_phone: '', location: '', memo: '',
+  });
   const [editId, setEditId] = useState<number|null>(null);
   const [alertInfo, setAlertInfo] = useState<{ open: boolean; message: string; type: 'warn'|'confirm'|'delete'; onConfirm?: () => void }>({ open: false, message: '', type: 'warn' });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -214,14 +184,26 @@ export default function SolutionClientsPage() {
     }
     const client = clients.find(c => c.id === selected[0]);
     if (!client) return;
-    setEditForm({ ...client });
+    setEditForm({
+      name: client.name ?? '',
+      solution: client.solution ?? '',
+      contract_type: client.contract_type ?? '',
+      license_type: client.license_type ?? '',
+      license_start: client.license_start ?? '',
+      license_end: client.license_end ?? '',
+      manager_name: client.manager_name ?? '',
+      manager_email: client.manager_email ?? '',
+      manager_phone: client.manager_phone ?? '',
+      location: client.location ?? '',
+      memo: client.memo ?? '',
+    });
     setEditId(client.id);
     setShowEditModal(true);
   };
 
   // 수정 폼 변경 핸들러
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     setEditForm(f => {
       if (name === 'license_type' && value === '영구') {
         return { ...f, [name]: value, license_end: '9999-12-31' };
@@ -239,19 +221,19 @@ export default function SolutionClientsPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editId) return;
-    const payload = Object.fromEntries(
-      Object.entries(editForm).map(([k, v]) => [k, v === '' ? null : v])
+    const { id, created_at, updated_at, is_active, ...rest } = editForm as any;
+    const updateData = Object.fromEntries(
+      Object.entries(rest).filter(([_, v]) => v !== undefined && v !== null && v !== '')
     );
-    const res = await fetch(`http://10.10.19.189:8000/clients/${editId}`, {
+    console.log('PUT updateData:', updateData);
+    const res = await fetch(`/api/clients/${editId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(updateData),
     });
     if (res.ok) {
       setShowEditModal(false);
-      setEditId(null);
-      setSelected([]);
-      fetch('http://10.10.19.189:8000/clients')
+      fetch('/api/clients')
         .then(res => res.json())
         .then(setClients);
     } else {
@@ -259,23 +241,23 @@ export default function SolutionClientsPage() {
     }
   };
 
-  const handleDelete = () => {
-    if (selected.length === 0) {
-      setAlertInfo({ open: true, message: '삭제할 고객사를 선택하세요.', type: 'warn' });
-      return;
+  const handleDelete = async (id: number) => {
+    const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      fetch('/api/clients')
+        .then(res => res.json())
+        .then(setClients);
+    } else {
+      alert('삭제 실패');
     }
-    setShowDeleteConfirm(true);
   };
   
   const confirmDelete = async () => {
     try {
       for (const id of selected) {
-        await fetch(`http://10.10.19.189:8000/clients/${id}`, { method: 'DELETE' });
+        await handleDelete(id);
       }
       setSelected([]);
-      fetch('http://10.10.19.189:8000/clients')
-        .then(res => res.json())
-        .then(setClients);
     } catch (err) {
       console.error(err);
       alert('삭제 실패');
@@ -306,23 +288,13 @@ export default function SolutionClientsPage() {
             <div className="flex gap-2 items-center">
               {canEdit && (
                 <>
-                  <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition text-base font-medium">
-                    추가
-                  </button>
-                  <button onClick={handleEdit} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 text-base font-medium" disabled={selected.length !== 1}>
-                    수정
-                  </button>
-                  <button onClick={handleDelete} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 text-base font-medium" disabled={selected.length === 0}>
-                    삭제
-                  </button>
+                  <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition text-base font-medium">추가</button>
+                  <button onClick={handleEdit} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 text-base font-medium" disabled={selected.length !== 1}>수정</button>
+                  <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 bg-white text-black rounded border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 text-base font-medium" disabled={selected.length === 0}>삭제</button>
                 </>
               )}
-              <button onClick={() => setView('tile')} className={`p-2 rounded bg-white text-black border border-gray-300 hover:bg-gray-100 transition ${view === 'tile' ? 'ring-2 ring-gray-400' : ''}`}>
-                <LayoutGrid />
-              </button>
-              <button onClick={() => setView('table')} className={`p-2 rounded bg-white text-black border border-gray-300 hover:bg-gray-100 transition ${view === 'table' ? 'ring-2 ring-gray-400' : ''}`}>
-                <List />
-              </button>
+              <button onClick={() => setView('tile')} className={`p-2 rounded bg-white text-black border border-gray-300 hover:bg-gray-100 transition ${view === 'tile' ? 'ring-2 ring-gray-400' : ''}`}> <LayoutGrid className="w-5 h-5" /> </button>
+              <button onClick={() => setView('table')} className={`p-2 rounded bg-white text-black border border-gray-300 hover:bg-gray-100 transition ${view === 'table' ? 'ring-2 ring-gray-400' : ''}`}> <List className="w-5 h-5" /> </button>
             </div>
           )}
         </div>
@@ -333,40 +305,53 @@ export default function SolutionClientsPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {Array.from({length: 9}).map((_, idx) => (
-                  pagedClients[idx] ? (
+                {Array.from({length: 9}).map((_, idx) => {
+                  if (!pagedClients[idx]) return <div key={`empty-${idx}`} className="p-6 rounded-lg border-transparent bg-transparent" />;
+                  const client = pagedClients[idx];
+                  let tileColorClass = '';
+                  if (!selected.includes(client.id)) {
+                    const end = client.license_end;
+                    if (end && end !== '9999-12-31') {
+                      const diff = (new Date(end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
+                      if (diff < 0) tileColorClass = 'bg-red-50 border-red-400';
+                      else if (diff <= 7) tileColorClass = 'bg-orange-50 border-orange-400';
+                      else tileColorClass = 'bg-white border-gray-200';
+                    } else {
+                      tileColorClass = 'bg-white border-gray-200';
+                    }
+                  } else {
+                    tileColorClass = 'bg-gray-200 border-gray-700';
+                  }
+                  return (
                     <div
-                      key={pagedClients[idx].id}
-                      className={`p-6 rounded-lg shadow hover:shadow-md transition flex flex-col gap-2 border min-h-[160px] ${selected.includes(pagedClients[idx].id) ? 'border-gray-700 bg-gray-200' : getLicenseStatusClass(pagedClients[idx].license_end)}`}
-                      onClick={() => toggleSelect(pagedClients[idx].id)}
+                      key={client.id}
+                      className={`p-6 rounded-lg shadow hover:shadow-md transition flex flex-col gap-2 border min-h-[160px] ${tileColorClass}`}
+                      onClick={() => toggleSelect(client.id)}
                       style={{ cursor: 'pointer' }}
                     >
                       <div className="relative">
-                        {pagedClients[idx].memo && (
+                        {client.memo && (
                           <button
                             className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 z-10"
                             style={{ lineHeight: 0 }}
                             onClick={e => {
                               e.stopPropagation();
                               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setMemoPopup({ open: true, memo: pagedClients[idx].memo, anchorX: rect.left + rect.width / 2, anchorY: rect.top + window.scrollY + rect.height / 2, anchorW: rect.width });
+                              setMemoPopup({ open: true, memo: client.memo ?? '', anchorX: rect.left + rect.width / 2, anchorY: rect.top + window.scrollY + rect.height / 2, anchorW: rect.width });
                             }}
                             title="메모 보기"
                           >
                             <FileText className="w-5 h-5 text-gray-600" />
                           </button>
                         )}
-                        <div className="font-bold text-lg mb-5 text-black">{pagedClients[idx].name}</div>
-                        <div className="text-sm text-gray-800 mb-1">계약 종류: {pagedClients[idx].contract_type}</div>
-                        <div className="text-sm text-gray-800 mb-1">라이선스 종류: {pagedClients[idx].license_type}</div>
-                        <div className="text-sm text-gray-800 mb-1">라이선스: {pagedClients[idx].license_start} ~ {pagedClients[idx].license_end}</div>
-                        {/*selected.includes(pagedClients[idx].id) && <div className="text-xs text-red-600">선택됨</div>*/}
+                        <div className="font-bold text-lg mb-5 text-black">{client.name}</div>
+                        <div className="text-sm text-gray-800 mb-1">계약 종류: {client.contract_type}</div>
+                        <div className="text-sm text-gray-800 mb-1">라이선스 종류: {client.license_type}</div>
+                        <div className="text-sm text-gray-800 mb-1">라이선스: {client.license_start} ~ {client.license_end}</div>
                       </div>
                     </div>
-                  ) : (
-                    <div key={`empty-${idx}`} className="p-6 rounded-lg border-transparent bg-transparent" />
-                  )
-                ))}
+                  );
+                })}
               </div>
               {totalPages > 1 && (
                 <div className="flex justify-center items-center w-full absolute left-0 bottom-0 pb-8">
@@ -390,52 +375,42 @@ export default function SolutionClientsPage() {
             </>
           )
         ) : !isAllClientsPage && view === 'table' ? (
-          <div className="flex-1">
-            <table ref={tableRef} className="w-full border-collapse text-sm text-black">
+          <div className="w-full">
+            <table ref={tableRef} className="w-full mt-4 text-left text-black">
               <thead>
-                <tr>
-                  <th className="p-2 border-b border-gray-300 bg-gray-50 sticky left-0 z-10 w-12">
+                <tr className="bg-gray-100 text-black">
+                  <th className="px-4 py-2 text-black">
                     <input type="checkbox" onChange={toggleSelectAll} checked={allSelected} />
                   </th>
                   {columns.map((col, idx) => (
-                    <th key={col.key} className="p-2 border-b border-gray-300 bg-gray-50 font-semibold relative" style={{ width: colWidths[idx], minWidth: 120, maxWidth: 600 }}>
-                      <div className="flex items-center justify-between">
-                        <span>{col.label}</span>
-                        <div
-                          className="w-1 h-full cursor-col-resize absolute right-0 top-0"
-                          onMouseDown={e => startResize(idx, e)}
-                        />
-                      </div>
+                    <th key={col.key} className="px-4 py-2 text-black">
+                      {col.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {pagedClients.map(c => (
-                  <tr key={c.id} className={`hover:bg-gray-100 transition ${getLicenseStatusClass(c.license_end)}`}>
-                    <td className="p-2 border-b border-gray-200 sticky left-0 z-10 bg-inherit">
+                  <tr key={c.id} className="border-b text-black">
+                    <td className="px-4 py-2 text-black">
                       <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} />
                     </td>
-                    {columns.map(col => (
-                      <td key={col.key} className="p-2 border-b border-gray-200">
-                        {col.key === 'memo' ? (
-                          c.memo ? (
-                            <button
-                              className="p-1 rounded hover:bg-gray-200 z-10"
-                              style={{ lineHeight: 0 }}
-                              onClick={e => {
-                                e.stopPropagation();
-                                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                setMemoPopup({ open: true, memo: c.memo, anchorX: rect.left + rect.width / 2, anchorY: rect.top + window.scrollY + rect.height / 2, anchorW: rect.width });
-                              }}
-                              title="메모 보기"
-                            >
-                              <FileText className="w-5 h-5 text-gray-600" />
-                            </button>
-                          ) : null
-                        ) : (c[col.key] || '')}
-                      </td>
-                    ))}
+                    {columns.map(col => {
+                      let nameColorClass = '';
+                      if (col.key === 'name') {
+                        const end = c.license_end;
+                        if (end && end !== '9999-12-31') {
+                          const diff = (new Date(end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
+                          if (diff < 0) nameColorClass = 'bg-red-50';
+                          else if (diff <= 7) nameColorClass = 'bg-orange-50';
+                        }
+                      }
+                      return (
+                        <td key={col.key} className={`px-4 py-2 text-black ${nameColorClass}`}>
+                          {c[col.key] ?? ''}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

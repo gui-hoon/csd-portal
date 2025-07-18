@@ -201,7 +201,7 @@ export default function WorksPage() {
             {mode === 'tile' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {pagedWorks.map(w => (
-                  <div key={w.id} className="p-6 rounded-lg shadow flex flex-col gap-2 bg-gray-50 border border-transparent relative min-h-[160px]">
+                  <div key={w.id} className="p-6 rounded-lg shadow flex flex-col gap-2 bg-white border border-gray-200 relative min-h-[160px]">
                     <div className="font-bold text-lg mb-1 text-black">{w.client}</div>
                     <div className="text-sm text-gray-800 mb-1">작업일: {getDateWithDay(w.date)}</div>
                     <div className="text-sm text-gray-800 mb-1">솔루션: {getSolutionLabel(w.solution)}</div>

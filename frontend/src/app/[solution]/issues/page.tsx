@@ -1,8 +1,12 @@
 'use client';
 import { useState, useEffect, use } from 'react';
-import { LayoutGrid, List, Plus, Search, Filter, MessageSquare, Calendar, User, Tag, AlertTriangle, CheckCircle, Clock, XCircle, Pencil, Trash } from 'lucide-react';
+import { LayoutGrid, List, Search, MessageSquare, Calendar, User, AlertTriangle, CheckCircle, Clock, XCircle, Pencil, Trash } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useSearchParams, useRouter } from 'next/navigation';
+
+type Client = { id: number; name: string; };
+type Issue = { id: number; client: string; title: string; [key: string]: any };
+type Comment = { id: number; author: string; content: string; created_at: string };
 
 // 이슈 상태별 아이콘과 색상
 const getStatusIcon = (status: string) => {
@@ -88,8 +92,8 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<'tile'|'table'>('tile');
-  const [issues, setIssues] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState(() => searchParams?.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(() => searchParams?.get('status') || '');
   const [priorityFilter, setPriorityFilter] = useState(() => searchParams?.get('priority') || '');
@@ -100,13 +104,13 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedIssueIds, setSelectedIssueIds] = useState<number[]>([]);
   const [addForm, setAddForm] = useState({ title: '', client: '', assignee: '', priority: 'medium', status: 'in_progress', due_date: '', tags: '', content: '' });
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [commentCounts, setCommentCounts] = useState<{[id: number]: number}>({});
   const [editField, setEditField] = useState<'status' | 'priority' | null>(null);
-  const [editComment, setEditComment] = useState<any>(null);
+  const [editComment, setEditComment] = useState<Comment | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [deleteTargetComment, setDeleteTargetComment] = useState<any>(null);
+  const [deleteTargetComment, setDeleteTargetComment] = useState<Comment | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', client: '', assignee: '', priority: 'medium', status: 'in_progress', due_date: '', tags: '', content: '' });
@@ -114,7 +118,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   // 솔루션별 고객사 목록 불러오기
   useEffect(() => {
     if (!solution) return;
-    fetch(`/clients/solution/${solution}`)
+    fetch(`/api/clients/solution/${solution}`)
       .then(res => res.json())
       .then(setClients);
   }, [solution]);
@@ -129,13 +133,13 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
     paramsObj.skip = (page - 1) * pageSize;
     paramsObj.limit = pageSize;
     const query = new URLSearchParams(paramsObj).toString();
-    const res = await fetch(`/issues/${encodeURIComponent(solution)}?${query}`);
+    const res = await fetch(`/api/issues/${encodeURIComponent(solution)}?${query}`);
     if (res.ok) {
       const data = await res.json();
       setIssues(data);
       // 댓글 개수 fetch
       const counts: {[id: number]: number} = {};
-      await Promise.all(data.map(async (issue: any) => {
+      await Promise.all(data.map(async (issue: Issue) => {
         const cres = await fetch(`/issues/${encodeURIComponent(solution)}/${issue.id}/comments`);
         if (cres.ok) {
           const clist = await cres.json();
@@ -177,7 +181,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   };
 
   // 이슈 상세/댓글 불러오기
-  const handleIssueClick = async (issue: any) => {
+  const handleIssueClick = async (issue: Issue) => {
     setSelectedIssueIds([issue.id]);
     setShowDetailModal(true);
     // 댓글 불러오기
@@ -206,11 +210,11 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   const totalPages = Math.ceil(issues.length / pageSize);
   const pagedIssues = issues; // 이미 API에서 페이징됨
 
-  const onEditCommentClick = (comment: any) => {
+  const onEditCommentClick = (comment: Comment) => {
     setEditComment(comment);
     setEditContent(comment.content);
   };
-  const onDeleteCommentClick = (comment: any) => {
+  const onDeleteCommentClick = (comment: Comment) => {
     setDeleteTargetComment(comment);
     setShowDeleteConfirm(true);
   };
@@ -218,7 +222,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
   const handleEditCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedIssueIds.length === 0) return;
-    const res = await fetch(`/issues/${encodeURIComponent(solution)}/${selectedIssueIds[0]}/comments/${editComment.id}`, {
+    const res = await fetch(`/issues/${encodeURIComponent(solution)}/${selectedIssueIds[0]}/comments/${editComment?.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -700,7 +704,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
               {/* 댓글 목록 */}
               {comments.length > 0 ? (
                 <div className="mt-4 space-y-2">
-                  {comments.map((c: any, i: number) => (
+                  {comments.map((c: Comment, i: number) => (
                     <div key={i} className="bg-gray-50 rounded p-2 text-sm text-black border">
                       <div className="font-semibold text-xs text-gray-600 mb-1 flex items-center gap-2">
                         {c.author} <span className="text-gray-400">{getDateWithDay(c.created_at || c.createdAt)}</span>

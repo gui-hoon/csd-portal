@@ -434,7 +434,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                 {pagedIssues.map(issue => (
                   <div
                     key={issue.id}
-                    className={`p-6 rounded-lg shadow border border-gray-200 hover:shadow-md transition cursor-pointer ${selectedIssueIds.includes(issue.id) ? '!bg-gray-200' : 'bg-white'}`}
+                    className={`p-6 rounded-lg shadow border min-h-[160px] transition cursor-pointer ${selectedIssueIds.includes(issue.id) ? 'border-gray-700 bg-gray-200' : 'bg-white border-gray-200 hover:shadow-md'}`}
                     onClick={() => setSelectedIssueIds(ids => ids.includes(issue.id) ? ids.filter(id => id !== issue.id) : [...ids, issue.id])}
                     onDoubleClick={() => handleIssueClick(issue)}
                   >
@@ -484,7 +484,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        <span className="text-xs text-gray-700">{getDateWithDay(issue.created_at || issue.createdAt)}</span>
+                        <span className="text-xs text-gray-700">{getDateWithDay(issue.created_at)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MessageSquare className="w-3 h-3" />
@@ -532,7 +532,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                           {getStatusLabel(issue.status)}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-black">{getDateWithDay(issue.created_at || issue.createdAt)}</td>
+                      <td className="px-4 py-2 text-black">{getDateWithDay(issue.created_at)}</td>
                       <td className="px-4 py-2 text-black">{getDateWithDay(issue.due_date || issue.dueDate)}</td>
                       <td className="px-4 py-2 text-black">
                         <div className="flex items-center gap-1">
@@ -707,7 +707,7 @@ export default function SolutionIssuesPage({ params }: { params: Promise<{ solut
                   {comments.map((c: Comment, i: number) => (
                     <div key={i} className="bg-gray-50 rounded p-2 text-sm text-black border">
                       <div className="font-semibold text-xs text-gray-600 mb-1 flex items-center gap-2">
-                        {c.author} <span className="text-gray-400">{getDateWithDay(c.created_at || c.createdAt)}</span>
+                        {c.author} <span className="text-gray-400">{getDateWithDay(c.created_at)}</span>
                         {user?.name === c.author && (
                           <span className="flex items-center gap-1 ml-2">
                             <button className="hover:text-blue-600 p-1" title="수정" onClick={() => onEditCommentClick(c)}><Pencil className="w-3 h-3" /></button>

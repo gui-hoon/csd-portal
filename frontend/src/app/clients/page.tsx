@@ -71,7 +71,7 @@ export default function ClientsOverviewPage() {
           if (group.length === 0) return null;
           return (
             <div key={solution} className="mb-10">
-              <h2 className="text-lg font-bold mb-3 text-black">{solution}</h2>
+              <h2 className="text-lg font-bold mb-3 text-black">{solution} ({group.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {group.map(c => {
                   let tileColorClass = '';
